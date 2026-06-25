@@ -53,6 +53,10 @@ let appState = {
   jobsQueue: [],
   currentJobToken: "",
   currentShortCode: "",
+  archiveRootFolderHandle: null,
+  archiveFolderHandle: null,
+  archiveFolderName: "",
+  adminArchiveFolderPath: "",
   
   // Operator Dashboard
   inkLevel: 68,
@@ -1047,7 +1051,6 @@ const ImageProcessor = {
     
     return collCanvas.toDataURL();
   }
-  }
 };
 
 // ==========================================
@@ -1266,6 +1269,27 @@ function clearWelcomeTimeout() {
     clearInterval(appState.welcomeTimerInterval);
     appState.welcomeTimerInterval = null;
   }
+}
+
+function resetPhotoSession() {
+  // Clear temporary capture state and preview session values
+  appState.capturedImageBuffer = null;
+  appState.adjustedImageBuffer = null;
+  appState.capturedFrames = [];
+  appState.currentPreviewFrameIndex = 0;
+  appState.activeFilter = "none";
+  appState.adjustZoom = 100;
+  appState.adjustBrightness = 0;
+  appState.adjustSkinTone = 0;
+  appState.copyCount = 1;
+  appState.currentJobToken = "";
+  appState.currentShortCode = "";
+  appState.selectedPrintSize = "4x6";
+  appState.selectedTemplate = "neon";
+  appState.galleryTTLHours = appState.galleryTTLHours || CONFIG.DEFAULT_GALLERY_TTL;
+
+  const countdown = document.getElementById("countdown-overlay");
+  if (countdown) countdown.classList.remove("active");
 }
 
 // ==========================================
@@ -1993,8 +2017,14 @@ document.addEventListener("DOMContentLoaded", () => {
         printProgress.style.display = "none";
         
         const printedImg = document.getElementById("printer-slide-photo-img");
-        printedImg.style.backgroundImage = `url(${ImageProcessor.getCollageDataUrl()})`;
+        const collageDataUrl = ImageProcessor.getCollageDataUrl();
+        printedImg.style.backgroundImage = `url(${collageDataUrl})`;
         printedImg.classList.add("animate-print");
+        
+        // Attempt to save the printed photo to the admin archive folder
+        savePrintedPhotoToArchive(collageDataUrl).catch(err => {
+          operatorLog(`Archive save failed: ${err.message}`, "error");
+        });
         
         // Update operator job status
         const job = appState.jobsQueue.find(j => j.id === appState.currentJobToken);
@@ -2036,7 +2066,89 @@ document.addEventListener("DOMContentLoaded", () => {
       operatorLog("CRITICAL: Printer paper levels extremely low!", "error");
     }
   }
-  
+
+  function updateArchiveFolderDisplay() {
+    const label = document.getElementById("txt-archive-folder-status");
+    if (!label) return;
+    if (appState.archiveRootFolderHandle) {
+      const folderInfo = appState.archiveFolderName ? `${appState.adminArchiveFolderPath}/${appState.archiveFolderName}` : appState.adminArchiveFolderPath;
+      label.textContent = `Archive folder: ${folderInfo}`;
+    } else {
+      label.textContent = "No archive folder selected";
+    }
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const [header, data] = dataUrl.split(",");
+    const mimeMatch = header.match(/:(.*?);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+    const binary = atob(data);
+    const array = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      array[i] = binary.charCodeAt(i);
+    }
+    return new Blob([array], { type: mimeType });
+  }
+
+  async function getOrCreatePrintArchiveFolder() {
+    if (!appState.archiveRootFolderHandle) return null;
+    if (appState.archiveFolderHandle) return appState.archiveFolderHandle;
+
+    const timestampFolder = `PRINT_${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    try {
+      const subHandle = await appState.archiveRootFolderHandle.getDirectoryHandle(timestampFolder, { create: true });
+      appState.archiveFolderHandle = subHandle;
+      appState.archiveFolderName = timestampFolder;
+      updateArchiveFolderDisplay();
+      return subHandle;
+    } catch (err) {
+      operatorLog(`Could not create archive folder: ${err.message}`, "error");
+      return null;
+    }
+  }
+
+  async function savePrintedPhotoToArchive(imageDataUrl) {
+    if (!window.showDirectoryPicker) {
+      operatorLog("Directory picker unsupported by this browser.", "warning");
+      return;
+    }
+    const archiveFolder = await getOrCreatePrintArchiveFolder();
+    if (!archiveFolder) return;
+
+    const fileName = `${appState.currentJobToken || "PHOTO"}_${new Date().toISOString().replace(/[:.]/g, "-")}.png`;
+    try {
+      const fileHandle = await archiveFolder.getFileHandle(fileName, { create: true });
+      const writable = await fileHandle.createWritable();
+      const blob = dataUrlToBlob(imageDataUrl);
+      await writable.write(blob);
+      await writable.close();
+      operatorLog(`Saved printed photo to archive: ${appState.archiveFolderName}/${fileName}`, "success");
+    } catch (err) {
+      operatorLog(`Failed to save print archive file: ${err.message}`, "error");
+    }
+  }
+
+  async function selectAdminArchiveRoot() {
+    if (!window.showDirectoryPicker) {
+      alert("This browser does not support folder selection. Please use Chrome or Edge.");
+      return;
+    }
+
+    try {
+      const rootHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+      appState.archiveRootFolderHandle = rootHandle;
+      appState.archiveFolderHandle = null;
+      appState.archiveFolderName = "";
+      appState.adminArchiveFolderPath = rootHandle.name;
+      updateArchiveFolderDisplay();
+      operatorLog(`Admin selected archive root: ${rootHandle.name}`, "success");
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        operatorLog(`Archive folder selection error: ${err.message}`, "error");
+      }
+    }
+  }
+
   // Finish Print flow
   document.getElementById("btn-print-done").onclick = () => {
     ConfettiEngine.stop();
@@ -2297,49 +2409,4 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   };
-});
-
-// Clear photo session details for new run
-function resetPhotoSession() {
-  appState.currentJobToken = "";
-  appState.currentShortCode = "";
-  appState.capturedImageBuffer = null;
-  appState.adjustedImageBuffer = null;
-  appState.activeFilter = "none";
-  appState.adjustZoom = 100;
-  appState.adjustBrightness = 0;
-  appState.adjustSkinTone = 0;
-  
-  // Upgraded resets
-  appState.captureMode = "single";
-  appState.capturedFrames = [];
-  appState.stickers = [];
-  
-  if (doodleCanvas) {
-    doodleCtx.clearRect(0, 0, 800, 600);
-  }
-  if (appState.gifPreviewInterval) {
-    clearInterval(appState.gifPreviewInterval);
-    appState.gifPreviewInterval = null;
-  }
-  
-  // Reset active tabs in UI
-  const tabAdjust = document.getElementById("btn-tab-adjust");
-  if (tabAdjust) tabAdjust.click();
-  
-  const singleModeBtn = document.getElementById("btn-mode-single");
-  const gifModeBtn = document.getElementById("btn-mode-gif");
-  if (singleModeBtn) singleModeBtn.classList.add("active");
-  if (gifModeBtn) gifModeBtn.classList.remove("active");
-  
-  // Reset preview panel controls
-  document.getElementById("slider-zoom").value = 100;
-  document.getElementById("val-zoom").textContent = "100%";
-  document.getElementById("slider-brightness").value = 0;
-  document.getElementById("val-brightness").textContent = "0";
-  document.getElementById("slider-skintone").value = 0;
-  document.getElementById("val-skintone").textContent = "0";
-  
-  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-  document.querySelector('[data-filter="none"]').classList.add("active");
-}
+      document.getElementById("btn-select-archive-folder").onclick = selectAdminArchiveRoot;    });
