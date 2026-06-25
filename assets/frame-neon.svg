@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="neonCyanPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f3ff" />
+      <stop offset="50%" stop-color="#ff00ff" />
+      <stop offset="100%" stop-color="#00f3ff" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Outer glowing frame border -->
+  <rect x="20" y="20" width="760" height="560" rx="16" fill="none" stroke="url(#neonCyanPink)" stroke-width="6" filter="url(#glow)" />
+  
+  <!-- Inside subtle border line -->
+  <rect x="35" y="35" width="730" height="530" rx="10" fill="none" stroke="#00f3ff" stroke-width="2" stroke-dasharray="10 15" opacity="0.7" />
+  
+  <!-- Cybernetic HUD corner decorations -->
+  <!-- Top Left -->
+  <path d="M 15 60 L 15 15 L 60 15" fill="none" stroke="#ff00ff" stroke-width="4" filter="url(#glow)" />
+  <rect x="25" y="25" width="8" height="8" fill="#00f3ff" />
+  
+  <!-- Top Right -->
+  <path d="M 785 60 L 785 15 L 740 15" fill="none" stroke="#ff00ff" stroke-width="4" filter="url(#glow)" />
+  <rect x="767" y="25" width="8" height="8" fill="#00f3ff" />
+  
+  <!-- Bottom Left -->
+  <path d="M 15 540 L 15 585 L 60 585" fill="none" stroke="#ff00ff" stroke-width="4" filter="url(#glow)" />
+  <rect x="25" y="567" width="8" height="8" fill="#00f3ff" />
+  
+  <!-- Bottom Right -->
+  <path d="M 785 540 L 785 585 L 740 585" fill="none" stroke="#ff00ff" stroke-width="4" filter="url(#glow)" />
+  <rect x="767" y="567" width="8" height="8" fill="#00f3ff" />
+  
+  <!-- HUD Bottom Center Info panel -->
+  <g transform="translate(400, 560)">
+    <polygon points="-120,0 120,0 100,22 -100,22" fill="#0c0f1d" stroke="url(#neonCyanPink)" stroke-width="2" filter="url(#glow)" />
+    <text x="0" y="15" fill="#00f3ff" font-family="monospace" font-size="11" font-weight="bold" letter-spacing="4" text-anchor="middle">
+      CYBER_BOOTH // SYS_ACTIVE
+    </text>
+  </g>
+  
+  <!-- HUD Top Center Logo panel -->
+  <g transform="translate(400, 40)">
+    <polygon points="-80,0 80,0 60,-22 -60,-22" fill="#0c0f1d" stroke="#ff00ff" stroke-width="2" filter="url(#glow)" />
+    <text x="0" y="-7" fill="#ff00ff" font-family="monospace" font-size="12" font-weight="bold" letter-spacing="2" text-anchor="middle">
+      LIVE PREVIEW
+    </text>
+  </g>
+  
+  <!-- Side battery / telemetry bars -->
+  <g transform="translate(45, 100)" opacity="0.6">
+    <rect x="0" y="0" width="4" height="20" fill="#00f3ff" />
+    <rect x="0" y="25" width="4" height="20" fill="#00f3ff" />
+    <rect x="0" y="50" width="4" height="20" fill="#ff00ff" />
+    <rect x="0" y="75" width="4" height="20" fill="#00f3ff" />
+  </g>
+  
+  <g transform="translate(751, 100)" opacity="0.6">
+    <rect x="0" y="0" width="4" height="20" fill="#ff00ff" />
+    <rect x="0" y="25" width="4" height="20" fill="#00f3ff" />
+    <rect x="0" y="50" width="4" height="20" fill="#00f3ff" />
+    <rect x="0" y="75" width="4" height="20" fill="#ff00ff" />
+  </g>
+</svg>

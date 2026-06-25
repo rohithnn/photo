@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiosk Photo-Booth - Event Edition</title>
+  <!-- Google Fonts: Outfit for premium modern kiosk look, JetBrains Mono for logs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <!-- FontAwesome for high-quality SVG icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="theme-default size-medium">
+
+  <!-- Confetti Canvas (drawn on during successful printing) -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Kiosk Main Wrapper -->
+  <div class="kiosk-container">
+
+    <!-- Top Status / Accessibility Bar -->
+    <header class="kiosk-header" aria-label="Kiosk Settings and Status">
+      <div class="header-left">
+        <h1 class="event-title-display"><span class="neon-text">GALA NIGHT</span> 2026</h1>
+        <span class="system-time" id="clock-display">16:07</span>
+      </div>
+
+      <div class="header-right">
+        <!-- Theme Selector -->
+        <div class="theme-selector-wrapper">
+          <select id="toggle-theme-select" class="kiosk-select mini-theme-select" aria-label="Select Kiosk Theme"
+            title="Select Theme">
+            <option value="cyber" selected>Cyber Glow</option>
+            <option value="retro-warm">Retro Warm</option>
+            <option value="chic-minimal">Chic Minimal</option>
+          </select>
+        </div>
+
+        <!-- Accessibility Controls -->
+        <div class="accessibility-panel">
+          <!-- High Contrast Mode Toggle -->
+          <button id="toggle-contrast" class="action-btn-icon" aria-label="Toggle High Contrast Mode"
+            title="High Contrast Mode">
+            <i class="fa-solid fa-circle-half-stroke"></i>
+          </button>
+
+          <!-- Text Size Adjuster -->
+          <button id="toggle-text-size" class="action-btn-icon" aria-label="Cycle Text Size" title="Adjust Text Size">
+            <i class="fa-solid fa-text-height"></i>
+          </button>
+
+          <!-- Audio Guide Toggle -->
+          <button id="toggle-sound" class="action-btn-icon active" aria-label="Toggle Sound Effects"
+            title="Sound Effects">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+
+          <!-- Language Switcher -->
+          <button id="toggle-lang" class="action-btn-text" aria-label="Switch Language" title="Switch Language">
+            <span>ES</span>
+          </button>
+        </div>
+
+        <!-- Operator Portal Login Trigger -->
+        <button id="operator-login-btn" class="action-btn-icon operator-btn" aria-label="Open Operator Controls"
+          title="Operator Dashboard">
+          <i class="fa-solid fa-user-gear"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Screens Container -->
+    <main class="kiosk-main">
+
+      <!-- SCREEN 1: Welcome & Consent Screen -->
+      <section id="screen-welcome" class="kiosk-screen active">
+        <div class="welcome-content">
+          <div class="welcome-decor-top">
+            <i class="fa-solid fa-camera-retro welcome-camera-icon"></i>
+          </div>
+
+          <h2 class="welcome-heading" id="welcome-title">Welcome to GALA NIGHT</h2>
+          <p class="welcome-subtitle" id="welcome-subtitle-text">Capture memories instantly. Tap "I Agree" to begin your
+            photo session!</p>
+
+          <div class="consent-card">
+            <h3><i class="fa-solid fa-shield-halved"></i> Privacy Consent</h3>
+            <p id="consent-text">
+              By using this booth, you consent to photo processing for this event.
+              Your photos are processed securely to provide prints and QR digital downloads.
+              <strong>All photos are automatically deleted after 24 hours.</strong>
+            </p>
+          </div>
+
+          <div class="welcome-actions">
+            <button id="btn-learn-more" class="btn btn-secondary btn-large">
+              <i class="fa-solid fa-circle-info"></i> <span id="txt-learn-more">Learn More</span>
+            </button>
+            <button id="btn-agree" class="btn btn-primary btn-huge btn-pulse">
+              <span id="txt-i-agree">I AGREE</span> <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+
+          <!-- Auto-timeout Ring Visualizer -->
+          <div class="timeout-indicator" id="welcome-timeout-container">
+            <div class="ring-progress">
+              <svg width="40" height="40">
+                <circle class="ring-bg" cx="20" cy="20" r="16"></circle>
+                <circle class="ring-bar" id="timeout-ring-bar" cx="20" cy="20" r="16"></circle>
+              </svg>
+              <span class="timeout-sec" id="timeout-sec-display">10</span>
+            </div>
+            <span class="timeout-text" id="timeout-label">Starting automatically...</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: Capture Screen (Main Viewfinder) -->
+      <section id="screen-capture" class="kiosk-screen">
+        <div class="capture-layout">
+
+          <!-- Viewfinder Frame Container -->
+          <div class="viewfinder-container">
+            <!-- Camera Video Feed / Falling back to Simulated Canvas -->
+            <div class="camera-wrapper">
+              <video id="webcam-feed" autoplay playsinline muted></video>
+              <canvas id="fallback-camera-canvas"></canvas>
+
+              <!-- Frame Overlay Container (SVG rendered on top) -->
+              <div class="viewfinder-overlay" id="active-frame-overlay">
+                <!-- SVG overlays will load here dynamically -->
+              </div>
+
+              <!-- Interactive Camera Flash Overlay -->
+              <div class="camera-flash" id="flash-effect"></div>
+
+              <!-- Auto-Framing Green Tick Indicator -->
+              <div class="framing-badge success" id="framing-indicator">
+                <i class="fa-solid fa-circle-check"></i> <span id="txt-perfectly-framed">Perfectly framed</span>
+              </div>
+
+              <!-- Ambient Low Light Warnings -->
+              <div class="framing-badge warning" id="low-light-indicator">
+                <i class="fa-solid fa-triangle-exclamation"></i> <span id="txt-low-light">Lighting low — move to
+                  brighter area</span>
+              </div>
+
+              <!-- 3-2-1 Countdown Overlay -->
+              <div class="countdown-overlay" id="countdown-overlay">
+                <span class="countdown-number" id="countdown-text">3</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Capture Panel Sidebar / Controls -->
+          <div class="capture-controls">
+            <!-- Capture Mode Toggle (Single vs GIF Loop) -->
+            <div class="capture-mode-container">
+              <h3 class="section-label" id="txt-capture-mode">Capture Mode</h3>
+              <div class="mode-toggle-buttons">
+                <button class="mode-toggle-btn active" id="btn-mode-single" data-mode="single">
+                  <i class="fa-solid fa-camera"></i> <span id="txt-mode-single">Single Shot</span>
+                </button>
+                <button class="mode-toggle-btn" id="btn-mode-gif" data-mode="gif">
+                  <i class="fa-solid fa-images"></i> <span id="txt-mode-gif">4-Shot GIF</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Top quick tip -->
+            <div class="help-tooltip">
+              <button id="toggle-pose-tips" class="tips-trigger-btn" aria-expanded="false">
+                <i class="fa-solid fa-circle-question"></i> <span id="txt-pose-tips-title">Pose Tips</span>
+              </button>
+              <div class="tips-dropdown" id="tips-dropdown-content">
+                <p id="tips-text">Stand 1.5m from the camera. Keep your face centered in the frame. Press TAKE PHOTO!
+                </p>
+              </div>
+            </div>
+
+            <!-- Frame/Template Selector Grid -->
+            <div class="templates-section">
+              <h3 class="section-label" id="txt-select-template">Select Frame Template</h3>
+              <div class="templates-grid">
+                <button class="template-item active" data-template="neon">
+                  <span class="template-thumb neon-thumb"></span>
+                  <span class="template-name">Cyber Neon</span>
+                </button>
+                <button class="template-item" data-template="retro">
+                  <span class="template-thumb retro-thumb"></span>
+                  <span class="template-name">Retro Film</span>
+                </button>
+                <button class="template-item" data-template="party">
+                  <span class="template-thumb party-thumb"></span>
+                  <span class="template-name">Party Time</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Bottom Camera Operation Actions -->
+            <div class="camera-actions-row">
+              <button id="btn-camera-switch" class="btn btn-secondary" title="Switch Camera" aria-label="Switch Camera">
+                <i class="fa-solid fa-camera-rotate"></i> <span id="txt-switch-cam">Switch</span>
+              </button>
+
+              <button id="btn-camera-flash" class="btn btn-secondary active" title="Toggle Flash"
+                aria-label="Toggle Flash">
+                <i class="fa-solid fa-bolt"></i> <span id="txt-flash">Flash On</span>
+              </button>
+            </div>
+
+            <!-- Gigantic Primary Take Photo Trigger -->
+            <div class="main-cta-wrapper">
+              <button id="btn-take-photo" class="btn btn-primary btn-huge btn-capture" aria-label="Capture Photo">
+                <i class="fa-solid fa-camera"></i>
+                <span id="txt-take-photo">TAKE PHOTO</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: Processing Screen -->
+      <section id="screen-processing" class="kiosk-screen">
+        <div class="processing-content">
+          <div class="spinner-container">
+            <div class="spinner-core"></div>
+            <div class="spinner-ring"></div>
+          </div>
+
+          <h2 class="processing-heading" id="txt-processing-title">Processing Your Photo</h2>
+          <p class="processing-subtitle" id="txt-processing-desc">Please hold on while we build your masterpiece.</p>
+
+          <!-- Pipeline Processing Steps -->
+          <div class="pipeline-list">
+            <div class="pipeline-step" id="step-upload">
+              <div class="step-icon"><i class="fa-solid fa-spinner fa-spin"></i></div>
+              <span class="step-label" id="txt-step-upload">Uploading to session gallery...</span>
+              <span class="step-eta" id="eta-upload">~2s</span>
+            </div>
+
+            <div class="pipeline-step pending" id="step-bg">
+              <div class="step-icon"><i class="fa-solid fa-hourglass"></i></div>
+              <span class="step-label" id="txt-step-bg">Performing AI background removal...</span>
+              <span class="step-eta" id="eta-bg">~3s</span>
+            </div>
+
+            <div class="pipeline-step pending" id="step-enhance">
+              <div class="step-icon"><i class="fa-solid fa-hourglass"></i></div>
+              <span class="step-label" id="txt-step-enhance">Enhancing face details & skin tone...</span>
+              <span class="step-eta" id="eta-enhance">~2s</span>
+            </div>
+
+            <div class="pipeline-step pending" id="step-finalize">
+              <div class="step-icon"><i class="fa-solid fa-hourglass"></i></div>
+              <span class="step-label" id="txt-step-finalize">Applying final overlays & compression...</span>
+              <span class="step-eta" id="eta-finalize">~1s</span>
+            </div>
+          </div>
+
+          <!-- Operator Cancel Action -->
+          <div class="operator-action-cancel" id="operator-cancel-container" style="display: none;">
+            <p class="operator-note"><i class="fa-solid fa-circle-exclamation"></i> Staff View: You may abort
+              processing.</p>
+            <button id="btn-operator-abort" class="btn btn-danger btn-large">Cancel Job Process</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: Preview & Edit Screen -->
+      <section id="screen-preview" class="kiosk-screen">
+        <div class="preview-layout">
+
+          <!-- Final Render Viewport -->
+          <div class="preview-viewport-container">
+            <div class="rendered-canvas-container">
+              <canvas id="photo-render-canvas"></canvas>
+            </div>
+            <div class="viewport-footer">
+              <p class="privacy-note-text"><i class="fa-solid fa-clock-rotate-left"></i> <span
+                  id="txt-ttl-footer">Auto-deletes from cloud in 24 hours.</span></p>
+            </div>
+          </div>
+
+          <!-- Photo Customization Panel -->
+          <div class="preview-customizer-sidebar">
+            <h2 class="sidebar-heading" id="txt-adjust-title">Customize Photo</h2>
+
+            <!-- Customizer Tabs Switcher -->
+            <div class="customizer-tabs">
+              <button class="tab-btn active" id="btn-tab-adjust" data-tab="adjust">
+                <i class="fa-solid fa-sliders"></i> <span id="txt-tab-adjust">Adjust</span>
+              </button>
+              <button class="tab-btn" id="btn-tab-decorate" data-tab="decorate">
+                <i class="fa-solid fa-palette"></i> <span id="txt-tab-decorate">Decorate</span>
+              </button>
+            </div>
+
+            <!-- TAB 1: Adjust Content -->
+            <div class="tab-pane active" id="tab-pane-adjust">
+              <!-- Sliders for adjustment -->
+              <div class="adjustments-panel">
+                <div class="slider-group">
+                  <div class="slider-header">
+                    <label for="slider-zoom" id="txt-slider-zoom"><i class="fa-solid fa-maximize"></i> Crop /
+                      Zoom</label>
+                    <span class="slider-value" id="val-zoom">100%</span>
+                  </div>
+                  <input type="range" id="slider-zoom" min="100" max="150" value="100" class="kiosk-slider">
+                </div>
+
+                <div class="slider-group">
+                  <div class="slider-header">
+                    <label for="slider-brightness" id="txt-slider-brightness"><i class="fa-solid fa-sun"></i>
+                      Brightness</label>
+                    <span class="slider-value" id="val-brightness">0</span>
+                  </div>
+                  <input type="range" id="slider-brightness" min="-50" max="50" value="0" class="kiosk-slider">
+                </div>
+
+                <div class="slider-group">
+                  <div class="slider-header">
+                    <label for="slider-skintone" id="txt-slider-skintone"><i
+                        class="fa-solid fa-wand-magic-sparkles"></i> Skin Tone Smooth</label>
+                    <span class="slider-value" id="val-skintone">0</span>
+                  </div>
+                  <input type="range" id="slider-skintone" min="0" max="100" value="0" class="kiosk-slider">
+                </div>
+              </div>
+
+              <!-- Dynamic Non-Destructive Filters -->
+              <div class="filters-panel">
+                <h3 class="section-label" id="txt-filters-label">Select Color Filter</h3>
+                <div class="filters-grid">
+                  <button class="filter-btn active" data-filter="none">
+                    <span class="filter-preview filter-none"></span>
+                    <span class="filter-name" id="txt-filter-orig">Original</span>
+                  </button>
+                  <button class="filter-btn" data-filter="vintage">
+                    <span class="filter-preview filter-vintage"></span>
+                    <span class="filter-name" id="txt-filter-vintage">Vintage</span>
+                  </button>
+                  <button class="filter-btn" data-filter="cyber">
+                    <span class="filter-preview filter-cyber"></span>
+                    <span class="filter-name" id="txt-filter-cyber">Cyber Neon</span>
+                  </button>
+                  <button class="filter-btn" data-filter="cartoon">
+                    <span class="filter-preview filter-cartoon"></span>
+                    <span class="filter-name" id="txt-filter-cartoon">Pop Cartoon</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 2: Decorate Content -->
+            <div class="tab-pane" id="tab-pane-decorate" style="display: none;">
+              <!-- Signature / Doodle Board controls -->
+              <div class="decorator-section">
+                <h3 class="section-label" id="txt-doodle-label">Doodle Signature</h3>
+                <div class="brush-settings">
+                  <div class="color-palette">
+                    <button class="color-swatch active" data-color="#ff0000" style="background-color: #ff0000;"
+                      aria-label="Red brush"></button>
+                    <button class="color-swatch" data-color="#00f3ff" style="background-color: #00f3ff;"
+                      aria-label="Cyan brush"></button>
+                    <button class="color-swatch" data-color="#33cc33" style="background-color: #33cc33;"
+                      aria-label="Green brush"></button>
+                    <button class="color-swatch" data-color="#ffd700" style="background-color: #ffd700;"
+                      aria-label="Gold brush"></button>
+                    <button class="color-swatch" data-color="#ffffff" style="background-color: #ffffff;"
+                      aria-label="White brush"></button>
+                    <button class="color-swatch" data-color="#000000" style="background-color: #000000;"
+                      aria-label="Black brush"></button>
+                  </div>
+
+                  <div class="brush-size-group">
+                    <label for="slider-brush-size" id="txt-brush-size">Size:</label>
+                    <input type="range" id="slider-brush-size" min="2" max="20" value="6" class="kiosk-slider">
+                  </div>
+                </div>
+                <button id="btn-clear-drawing" class="btn btn-secondary btn-block btn-small">
+                  <i class="fa-solid fa-eraser"></i> <span id="txt-clear-draw">Clear Signature</span>
+                </button>
+              </div>
+
+              <!-- Stickers selector -->
+              <div class="decorator-section stickers-section">
+                <h3 class="section-label" id="txt-stickers-label">Tap to Place Props</h3>
+                <div class="stickers-grid">
+                  <button class="sticker-item" data-sticker="😎" title="Cool Sunglasses">😎</button>
+                  <button class="sticker-item" data-sticker="👑" title="Gold Crown">👑</button>
+                  <button class="sticker-item" data-sticker="👨" title="Mustache">👨</button>
+                  <button class="sticker-item" data-sticker="🥳" title="Party Hat">🥳</button>
+                  <button class="sticker-item" data-sticker="❤️" title="Love Heart">❤️</button>
+                  <button class="sticker-item" data-sticker="✨" title="Sparkles">✨</button>
+                  <button class="sticker-item" data-sticker="💬" title="Speech Bubble">💬</button>
+                  <button class="sticker-item" data-sticker="⭐" title="Star">⭐</button>
+                </div>
+                <p class="sticker-instruction" id="txt-sticker-help">Tap a prop to place. Drag to move. Drag outside
+                  photo area to delete.</p>
+              </div>
+            </div>
+
+            <!-- Workflow Finisher Actions -->
+            <div class="preview-actions-row">
+              <button id="btn-retake" class="btn btn-secondary btn-large">
+                <i class="fa-solid fa-arrow-rotate-left"></i> <span id="txt-retake">RETAKE</span>
+              </button>
+
+              <button id="btn-goto-print" class="btn btn-primary btn-large btn-glowing">
+                <i class="fa-solid fa-print"></i> <span id="txt-print">PRINT</span>
+              </button>
+
+              <button id="btn-goto-share" class="btn btn-primary btn-large btn-glowing">
+                <i class="fa-solid fa-share-nodes"></i> <span id="txt-share-qr">SHARE QR</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: Print Screen -->
+      <section id="screen-print" class="kiosk-screen">
+        <div class="print-config-content">
+          <div class="print-split-panel">
+
+            <!-- Left: Settings & Print Action -->
+            <div class="print-control-card">
+              <h2 class="print-heading" id="txt-print-options"><i class="fa-solid fa-print"></i> Print Options</h2>
+
+              <!-- Size Options -->
+              <div class="print-size-selection">
+                <span class="selection-title" id="txt-print-size">Photo Dimensions:</span>
+                <div class="size-buttons">
+                  <button class="size-btn active" data-size="4x6">
+                    <span class="size-ratio">4" x 6"</span>
+                    <span class="size-label" id="txt-size-standard">Standard Print</span>
+                  </button>
+                  <button class="size-btn" data-size="5x7">
+                    <span class="size-ratio">5" x 7"</span>
+                    <span class="size-label" id="txt-size-large">Large Premium</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Copies Counter -->
+              <div class="print-copies-selection">
+                <span class="selection-title" id="txt-print-copies">Number of Copies:</span>
+                <div class="copies-stepper">
+                  <button id="btn-copy-minus" class="stepper-btn" aria-label="Decrease Copy Count"><i
+                      class="fa-solid fa-minus"></i></button>
+                  <span id="copies-count-display" class="copies-count">1</span>
+                  <button id="btn-copy-plus" class="stepper-btn" aria-label="Increase Copy Count"><i
+                      class="fa-solid fa-plus"></i></button>
+                </div>
+                <span class="limit-indicator" id="txt-copy-limit">(Limit: 5 copies per session)</span>
+              </div>
+
+              <button id="btn-print-now" class="btn btn-primary btn-huge btn-glowing">
+                <i class="fa-solid fa-print"></i> <span id="txt-print-now-btn">PRINT NOW</span>
+              </button>
+
+              <!-- Back button to return to editing/preview -->
+              <button id="btn-print-back" class="btn btn-secondary btn-large">
+                <i class="fa-solid fa-chevron-left"></i> <span id="txt-print-back">Back to Preview</span>
+              </button>
+            </div>
+
+            <!-- Right: Interactive Printer Slot Animation / Status -->
+            <div class="printer-visual-card">
+
+              <!-- Printing State Progress -->
+              <div class="printer-workstation-status" id="printing-in-progress-display" style="display: none;">
+                <div class="printing-spinner">
+                  <i class="fa-solid fa-gears fa-spin"></i>
+                </div>
+                <h3 id="txt-printing-kiosk">Printing your high-gloss photo...</h3>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" id="print-progress-bar"></div>
+                </div>
+                <span class="time-remaining" id="print-eta-label">Estimated: 12 seconds remaining</span>
+              </div>
+
+              <!-- Static Printer Slot Mockup -->
+              <div class="kiosk-printer-mock" id="printer-device-mock">
+                <div class="printer-body">
+                  <div class="printer-slot">
+                    <!-- Photo sliding out animation during print -->
+                    <div class="printer-slide-photo" id="printer-slide-photo-img"></div>
+                  </div>
+                  <div class="printer-tray"></div>
+                </div>
+              </div>
+
+              <!-- Success Alert Box + Receipt Printout -->
+              <div class="print-receipt-container" id="print-receipt-card" style="display: none;">
+                <div class="success-banner">
+                  <i class="fa-solid fa-circle-check"></i>
+                  <h3 id="txt-print-complete">Print Successful!</h3>
+                  <p id="txt-pickup-instruction">Pick up your photo at the physical slot below.</p>
+                </div>
+
+                <!-- Receipt Ticket -->
+                <div class="receipt-ticket">
+                  <div class="receipt-header">
+                    <h4>PHOTO-BOOTH RECEIPT</h4>
+                    <p class="receipt-date" id="receipt-datetime">2026-06-25 16:07</p>
+                  </div>
+                  <div class="receipt-divider"></div>
+                  <div class="receipt-body">
+                    <div class="receipt-row">
+                      <span id="txt-rec-job">Job Token:</span>
+                      <strong id="receipt-job-token">JB-99214-A</strong>
+                    </div>
+                    <div class="receipt-row">
+                      <span id="txt-rec-code">Short Code:</span>
+                      <strong class="receipt-highlight" id="receipt-short-code">A9B2</strong>
+                    </div>
+                    <div class="receipt-row">
+                      <span id="txt-rec-copies">Quantity:</span>
+                      <strong id="receipt-copies">1 Copy (4x6)</strong>
+                    </div>
+                  </div>
+                  <div class="receipt-divider"></div>
+                  <div class="receipt-footer">
+                    <p id="txt-rec-footer">Use the Short Code on the sharing screen if QR link doesn't load.</p>
+                  </div>
+                </div>
+
+                <div class="receipt-actions">
+                  <button id="btn-print-done" class="btn btn-primary btn-large btn-block">
+                    <span id="txt-done">Done</span> <i class="fa-solid fa-check"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 6: Share Screen (QR & Social Options) -->
+      <section id="screen-share" class="kiosk-screen">
+        <div class="share-content-container">
+          <div class="share-grid-layout">
+
+            <!-- Left: QR Code Display Card -->
+            <div class="qr-display-card">
+              <h2 class="share-heading" id="txt-scan-title"><i class="fa-solid fa-qrcode"></i> Scan to Download</h2>
+              <p class="share-desc" id="txt-scan-desc">Scan with your smartphone camera to download the high-resolution
+                photo instantly.</p>
+
+              <!-- QR Code Canvas Container -->
+              <div class="qr-image-wrapper">
+                <img id="qr-code-image" src="" alt="Dynamic Sharing QR Code">
+                <div id="qr-image-placeholder" style="display:none;">
+                  <i class="fa-solid fa-qrcode fa-5x"></i>
+                  <p>QR Code Unavailable Offline</p>
+                </div>
+              </div>
+
+              <!-- Deletion Countdown -->
+              <div class="deletion-countdown-bar">
+                <i class="fa-solid fa-trash-can"></i>
+                <span><span id="txt-deletes-in">Deletes from gallery in</span> <strong id="share-timer-countdown">23h
+                    59m</strong></span>
+              </div>
+            </div>
+
+            <!-- Right: Alternate Delivery Forms -->
+            <div class="delivery-forms-card">
+              <h3 class="delivery-heading" id="txt-alt-delivery"><i class="fa-solid fa-paper-plane"></i> Or Send
+                Electronically</h3>
+
+              <div class="sharing-options-stack">
+                <!-- SMS Option -->
+                <div class="delivery-option-group">
+                  <button class="delivery-collapse-trigger" data-target="sms-collapse">
+                    <i class="fa-solid fa-comment-sms"></i> <span id="txt-sms-btn">Send via SMS (Text Message)</span>
+                  </button>
+                  <div class="delivery-collapse-content" id="sms-collapse">
+                    <div class="input-inline-form">
+                      <div class="input-with-icon">
+                        <i class="fa-solid fa-phone"></i>
+                        <input type="tel" id="input-sms-number" placeholder="+1 (555) 000-0000"
+                          aria-label="Mobile Phone Number">
+                      </div>
+                      <button id="btn-send-sms" class="btn btn-primary"><span id="txt-send-btn-sms">Send
+                          SMS</span></button>
+                    </div>
+                    <span class="delivery-feedback" id="sms-feedback-msg"></span>
+                  </div>
+                </div>
+
+                <!-- Email Option -->
+                <div class="delivery-option-group">
+                  <button class="delivery-collapse-trigger" data-target="email-collapse">
+                    <i class="fa-solid fa-envelope"></i> <span id="txt-email-btn">Send via Email</span>
+                  </button>
+                  <div class="delivery-collapse-content" id="email-collapse">
+                    <div class="input-inline-form">
+                      <div class="input-with-icon">
+                        <i class="fa-solid fa-at"></i>
+                        <input type="email" id="input-email-address" placeholder="yourname@domain.com"
+                          aria-label="Email Address">
+                      </div>
+                      <button id="btn-send-email" class="btn btn-primary"><span id="txt-send-btn-email">Send
+                          Email</span></button>
+                    </div>
+                    <span class="delivery-feedback" id="email-feedback-msg"></span>
+                  </div>
+                </div>
+
+                <!-- Opt-in Marketing Checkbox -->
+                <div class="marketing-opt-in-wrapper">
+                  <label class="kiosk-checkbox-label">
+                    <input type="checkbox" id="chk-marketing-opt-in">
+                    <span class="checkbox-box"></span>
+                    <span class="checkbox-text" id="txt-marketing-opt">I agree to receive promotional updates and
+                      newsletter communications.</span>
+                  </label>
+                </div>
+
+                <!-- Copy Link Direct Button -->
+                <div class="direct-link-container">
+                  <button id="btn-copy-link" class="btn btn-secondary btn-large btn-block">
+                    <i class="fa-solid fa-copy"></i> <span id="txt-copy-link-btn">COPY PHOTO LINK</span>
+                  </button>
+                  <span class="delivery-feedback" id="copy-link-feedback-msg"></span>
+                </div>
+              </div>
+
+              <!-- Secondary Navigation Buttons -->
+              <div class="share-footer-actions">
+                <!-- Back button to return to editing/preview -->
+                <button id="btn-share-back" class="btn btn-secondary btn-large">
+                  <i class="fa-solid fa-chevron-left"></i> <span id="txt-share-back">Back</span>
+                </button>
+                <button id="btn-share-done" class="btn btn-primary btn-large">
+                  <span id="txt-share-done">Finish Session</span> <i class="fa-solid fa-circle-check"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 7: Operator Dashboard (Staff Interface) -->
+      <section id="screen-operator" class="kiosk-screen">
+        <div class="operator-dashboard-layout">
+
+          <!-- Left Control Column -->
+          <div class="operator-controls-col">
+            <div class="operator-card dashboard-profile">
+              <div class="profile-header">
+                <i class="fa-solid fa-shield-cat profile-avatar"></i>
+                <div>
+                  <h2>Staff Panel</h2>
+                  <span class="badge badge-online">System Ready</span>
+                </div>
+              </div>
+
+              <!-- Hardware Status Indicators -->
+              <div class="hardware-status-list">
+                <div class="status-indicator-group">
+                  <span class="status-label"><i class="fa-solid fa-print"></i> Printer Paper Level</span>
+                  <div class="progress-bar-container mini">
+                    <div class="progress-bar-fill" id="status-paper-fill" style="width: 84%; background: #33cc33;">
+                    </div>
+                  </div>
+                  <span class="status-percentage" id="lbl-paper-level">84% (420 / 500 prints)</span>
+                </div>
+
+                <div class="status-indicator-group">
+                  <span class="status-label"><i class="fa-solid fa-droplet"></i> Ink Ribbon Status</span>
+                  <div class="progress-bar-container mini">
+                    <div class="progress-bar-fill" id="status-ink-fill" style="width: 68%; background: #33cc33;"></div>
+                  </div>
+                  <span class="status-percentage" id="lbl-ink-level">68%</span>
+                </div>
+
+                <div class="status-indicator-group">
+                  <span class="status-label"><i class="fa-solid fa-camera"></i> Webcam Device</span>
+                  <span class="badge badge-success" id="lbl-camera-connected">ACTIVE (HD PRO 1080P)</span>
+                </div>
+              </div>
+
+              <!-- Quick Exit Operator Mode -->
+              <button id="btn-operator-exit" class="btn btn-secondary btn-large btn-block">
+                <i class="fa-solid fa-right-from-bracket"></i> Exit Operator Mode
+              </button>
+            </div>
+
+            <!-- Settings Settings Tab Column -->
+            <div class="operator-card operator-settings">
+              <h3>System Settings</h3>
+
+              <div class="settings-form">
+                <!-- Limit prints per session -->
+                <div class="setting-item-row">
+                  <label for="set-print-limit">Print Count Limit:</label>
+                  <select id="set-print-limit" class="kiosk-select">
+                    <option value="1">1 Print Max</option>
+                    <option value="2">2 Prints Max</option>
+                    <option value="5" selected>5 Prints Max</option>
+                    <option value="10">10 Prints Max</option>
+                  </select>
+                </div>
+
+                <!-- Auto delete gallery delay -->
+                <div class="setting-item-row">
+                  <label for="set-gallery-ttl">Auto-Delete TTL:</label>
+                  <select id="set-gallery-ttl" class="kiosk-select">
+                    <option value="1">1 Hour</option>
+                    <option value="12">12 Hours</option>
+                    <option value="24" selected>24 Hours</option>
+                    <option value="48">48 Hours</option>
+                    <option value="168">7 Days (Expos)</option>
+                  </select>
+                </div>
+
+                <!-- Simulated lighting modifier -->
+                <div class="setting-item-row">
+                  <label for="set-ambient-light">Simulated Light Level:</label>
+                  <select id="set-ambient-light" class="kiosk-select">
+                    <option value="normal" selected>Normal (Optimal)</option>
+                    <option value="low">Low (Flashes warning)</option>
+                  </select>
+                </div>
+
+                <!-- Simulated face detected flag -->
+                <div class="setting-item-row">
+                  <label for="set-face-detect">Face Track Mode:</label>
+                  <select id="set-face-detect" class="kiosk-select">
+                    <option value="detected" selected>Simulate Detected</option>
+                    <option value="none">Simulate No Face</option>
+                  </select>
+                </div>
+
+                <!-- Upload mockup overlay trigger -->
+                <div class="setting-item-row">
+                  <label>Import Template Overlay:</label>
+                  <div class="file-upload-mock">
+                    <input type="file" id="btn-operator-upload" accept=".svg,.png" class="file-input-hidden"
+                      aria-label="Upload custom frame overlay">
+                    <button class="btn btn-secondary btn-small"
+                      onclick="document.getElementById('btn-operator-upload').click()">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> Choose Overlay
+                    </button>
+                    <span class="file-name-display" id="lbl-uploaded-file">No file selected</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Grid/Queue Column -->
+          <div class="operator-queue-col">
+            <!-- Job Queue Control List -->
+            <div class="operator-card queue-card">
+              <div class="card-header-actions">
+                <h3>Active Print & Sharing Queue</h3>
+                <button id="btn-clear-queue" class="btn btn-danger btn-small"><i class="fa-solid fa-trash-can"></i>
+                  Clear Completed</button>
+              </div>
+
+              <div class="queue-list-wrapper">
+                <table class="queue-table">
+                  <thead>
+                    <tr>
+                      <th id="th-id">Job Code</th>
+                      <th id="th-preview">Preview</th>
+                      <th id="th-status">Status</th>
+                      <th id="th-time">Timestamp</th>
+                      <th id="th-actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="operator-queue-tbody">
+                    <!-- Queue rows will be generated dynamically in JS -->
+                    <tr>
+                      <td colspan="5" class="empty-queue-cell">No jobs currently in print queue.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Live Logs Terminal -->
+            <div class="operator-card log-card">
+              <h3>System Console Log</h3>
+              <div class="console-terminal" id="operator-console-log">
+                <!-- Log messages will append here in mono font -->
+                <div class="log-line system-line">[16:06:53] INFO: Kiosk Photo-Booth software started successfully.
+                </div>
+                <div class="log-line system-line">[16:06:54] INFO: WebAudio sound effects system initialized.</div>
+                <div class="log-line system-line">[16:06:55] INFO: Active Event templates loaded: cyber, retro, party.
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Screen 1: Learn More Privacy Modal Dialog -->
+  <div class="modal-overlay" id="modal-learn-more" style="display: none;">
+    <div class="kiosk-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 id="modal-title">Photo Privacy & Storage Policy</h3>
+        <button id="btn-close-modal" class="modal-close-btn" aria-label="Close details dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>This kiosk app is designed for physical events to capture and print souvenirs. We value your privacy and
+          security:</p>
+        <ul>
+          <li><strong>Processing:</strong> Photos are combined with graphic templates inside the browser. No raw images
+            are processed outside this device.</li>
+          <li><strong>Digital Cloud Delivery:</strong> When you share via QR, SMS, or Email, the combined photo is
+            uploaded to our secure content delivery network (CDN).</li>
+          <li><strong>Auto-Deletion:</strong> Shared digital photos are stored with a strict TTL (Time to Live) setting
+            and are automatically destroyed after exactly 24 hours.</li>
+          <li><strong>No Resell:</strong> Your phone number or email entered during sharing is used exclusively for
+            one-time photo receipt delivery and is not retained or sold.</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-modal-close-confirm" class="btn btn-primary">Close Panel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Operator Passcode Authentication Overlay -->
+  <div class="modal-overlay" id="modal-operator-auth" style="display: none;">
+    <div class="kiosk-modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+      <div class="modal-header">
+        <h3 id="auth-modal-title"><i class="fa-solid fa-lock"></i> Staff Authentication</h3>
+        <button id="btn-close-auth-modal" class="modal-close-btn" aria-label="Close passcode dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="auth-instruction">Enter operator security passcode to view logs and configurations.</p>
+
+        <!-- Pin Code Display Grid -->
+        <div class="pin-display">
+          <input type="password" id="pin-field" maxlength="4" readonly aria-label="Passcode digits">
+        </div>
+
+        <div class="pin-keypad">
+          <button class="pin-key" data-val="1">1</button>
+          <button class="pin-key" data-val="2">2</button>
+          <button class="pin-key" data-val="3">3</button>
+          <button class="pin-key" data-val="4">4</button>
+          <button class="pin-key" data-val="5">5</button>
+          <button class="pin-key" data-val="6">6</button>
+          <button class="pin-key" data-val="7">7</button>
+          <button class="pin-key" data-val="8">8</button>
+          <button class="pin-key" data-val="9">9</button>
+          <button class="pin-key btn-clear" data-val="clear">C</button>
+          <button class="pin-key" data-val="0">0</button>
+          <button class="pin-key btn-submit" id="btn-submit-pin"><i
+              class="fa-solid fa-arrow-right-to-bracket"></i></button>
+        </div>
+        <span class="auth-error-msg" id="pin-error-feedback"></span>
+        <p class="auth-hint">Default passcode is <strong>1234</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Javascript -->
+  <script src="script.js"></script>
+</body>
+
+</html>

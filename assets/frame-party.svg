@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <!-- Party Streamers / Confetti Theme -->
+  <defs>
+    <linearGradient id="partyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff007f" />
+      <stop offset="25%" stop-color="#ffaa00" />
+      <stop offset="50%" stop-color="#33cc33" />
+      <stop offset="75%" stop-color="#00aaff" />
+      <stop offset="100%" stop-color="#aa00ff" />
+    </linearGradient>
+  </defs>
+
+  <!-- Colorful Gradient Border Frame -->
+  <rect x="15" y="15" width="770" height="570" rx="20" fill="none" stroke="url(#partyGrad)" stroke-width="8" />
+
+  <!-- Confetti circles floating around the frame margins -->
+  <g opacity="0.85">
+    <!-- Top area -->
+    <circle cx="100" cy="50" r="10" fill="#ff4081" />
+    <circle cx="220" cy="40" r="8" fill="#ffd700" />
+    <circle cx="350" cy="35" r="12" fill="#00e5ff" />
+    <circle cx="480" cy="45" r="7" fill="#69f0ae" />
+    <circle cx="600" cy="38" r="9" fill="#d500f9" />
+    <circle cx="700" cy="55" r="11" fill="#ff6d00" />
+
+    <!-- Left border area -->
+    <circle cx="45" cy="150" r="8" fill="#ffd700" />
+    <circle cx="50" cy="280" r="10" fill="#00e5ff" />
+    <circle cx="40" cy="420" r="7" fill="#ff4081" />
+
+    <!-- Right border area -->
+    <circle cx="755" cy="160" r="9" fill="#d500f9" />
+    <circle cx="750" cy="300" r="11" fill="#ff6d00" />
+    <circle cx="760" cy="450" r="8" fill="#69f0ae" />
+
+    <!-- Bottom area -->
+    <circle cx="120" cy="550" r="9" fill="#00e5ff" />
+    <circle cx="260" cy="560" r="11" fill="#ff4081" />
+    <circle cx="420" cy="555" r="8" fill="#ffd700" />
+    <circle cx="580" cy="562" r="12" fill="#69f0ae" />
+    <circle cx="680" cy="548" r="7" fill="#d500f9" />
+  </g>
+
+  <!-- Stars -->
+  <g fill="#ffd700" stroke="#ffaa00" stroke-width="1">
+    <!-- Top Left Star -->
+    <polygon points="65,80 70,95 85,95 72,105 77,120 65,110 53,120 58,105 45,95 60,95" />
+    <!-- Top Right Star -->
+    <polygon points="735,80 740,95 755,95 742,105 747,120 735,110 723,120 728,105 715,95 730,95" />
+  </g>
+
+  <!-- Balloons in corners -->
+  <!-- Top Left Balloon -->
+  <g transform="translate(60, 110)" stroke="#fff" stroke-width="1.5">
+    <ellipse cx="20" cy="30" rx="15" ry="20" fill="#ff4081" />
+    <path d="M 20 50 L 17 55 L 23 55 Z" fill="#ff4081" />
+    <path d="M 20 55 Q 20 75 10 90" fill="none" stroke="#ccc" stroke-width="1" />
+  </g>
+  <!-- Top Right Balloon -->
+  <g transform="translate(680, 110)" stroke="#fff" stroke-width="1.5">
+    <ellipse cx="20" cy="30" rx="15" ry="20" fill="#00e5ff" />
+    <path d="M 20 50 L 17 55 L 23 55 Z" fill="#00e5ff" />
+    <path d="M 20 55 Q 20 75 25 90" fill="none" stroke="#ccc" stroke-width="1" />
+  </g>
+
+  <!-- Fun Celebration Text Banner (Bottom) -->
+  <g transform="translate(400, 560)">
+    <!-- Shadow effect text -->
+    <text x="2" y="2" fill="#000" font-family="'Impact', 'Arial Black', sans-serif" font-size="28" letter-spacing="4" text-anchor="middle" opacity="0.5">
+      ★ PARTY TIME ★
+    </text>
+    <text x="0" y="0" fill="#ffd700" font-family="'Impact', 'Arial Black', sans-serif" font-size="28" letter-spacing="4" text-anchor="middle" stroke="#000" stroke-width="1.5">
+      ★ PARTY TIME ★
+    </text>
+  </g>
+  
+  <!-- Ribbon Streamers -->
+  <path d="M 120 50 Q 130 90 115 130 T 130 200" fill="none" stroke="#ff4081" stroke-width="2" />
+  <path d="M 680 50 Q 670 90 685 130 T 670 200" fill="none" stroke="#00e5ff" stroke-width="2" />
+</svg>
